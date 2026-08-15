@@ -1,0 +1,13 @@
+# PaperHub 配置
+downloads:
+  directory: ~/paper-downloads
+  timeout: 30
+  retries: 3
+
+keys:
+  core_api: ""       # CORE API Key (free: core.ac.uk/services/api)
+  bohrium_api: ""    # 玻尔 API Key
+
+search:
+  default_limit: 10
+  dedup: true
