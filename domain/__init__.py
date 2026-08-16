@@ -14,7 +14,7 @@ from .railway import (
     INDUSTRY_SITES,
     collect_papers,
     collect_latest_railway_papers,
-    collect_industry_news,
+    search_wechat_articles,
     get_report_summary,
 )
 from .citation import get_citations, get_references, get_citation_network, get_citation_count

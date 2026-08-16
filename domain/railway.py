@@ -130,7 +130,59 @@ def collect_latest_railway_papers(limit_per_journal: int = 3) -> dict:
     return report
 
 
-def collect_industry_news() -> list:
+def search_wechat_articles(keywords: list, max_per_keyword: int = 10) -> list:
+    """通过搜狗微信搜索获取公众号文章"""
+    import requests, re, time
+    from urllib.parse import urljoin
+
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    })
+
+    # 先访问首页获取 cookie
+    try:
+        session.get("https://weixin.sogou.com/", timeout=10)
+    except Exception:
+        return []
+
+    all_articles = []
+    for keyword in keywords:
+        try:
+            resp = session.get(
+                "https://weixin.sogou.com/weixin",
+                params={"type": 2, "query": keyword, "page": 1},
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                continue
+            html = resp.text
+            items = re.findall(r'<li id="sogou_vr_\d+_box_\d+"[^>]*>.*?</li>', html, re.DOTALL)
+            for item in items[:max_per_keyword]:
+                title_match = re.search(r'<h3[^>]*>.*?<a[^>]*>(.*?)</a>', item, re.DOTALL)
+                title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip() if title_match else ""
+                if not title:
+                    continue
+                link_match = re.search(r'<a[^>]*href="([^"]*)"', item)
+                link = link_match.group(1) if link_match else ""
+                if link and not link.startswith("http"):
+                    link = urljoin("https://weixin.sogou.com", link)
+                abstract_match = re.search(r'<p[^>]*class="txt-info"[^>]*>(.*?)</p>', item, re.DOTALL)
+                abstract = re.sub(r'<[^>]+>', '', abstract_match.group(1)).strip() if abstract_match else ""
+                # 清理 HTML 实体
+                abstract = abstract.replace("&ldquo;", "「").replace("&rdquo;", "」").replace("&mdash;", "—")
+                title = title.replace("&ldquo;", "「").replace("&rdquo;", "」")
+                all_articles.append({
+                    "title": title,
+                    "url": link,
+                    "abstract": abstract[:200],
+                    "source": "搜狗微信搜索",
+                })
+            time.sleep(1.5)
+        except Exception:
+            continue
+
+    return all_articles
     """收集行业新闻（从公开网站获取）"""
     news = []
     import requests
