@@ -73,10 +73,11 @@ class SciHubPlatform(BasePlatform):
             path = download_pdf(url, filename, "sci-hub")
             if path:
                 # 检查是否为有效的 PDF
-                content = open(path, 'rb').read(1024)
+                with open(path, 'rb') as f:
+                    content = f.read(1024)
                 if content.startswith(b'%PDF'):
                     return str(path)
-                path.unlink()  # 删除无效文件
+                path.unlink(missing_ok=True)  # 删除无效文件
 
             # 获取 HTML 页面提取 PDF 链接
             resp = fetch(url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"})
@@ -97,9 +98,10 @@ class SciHubPlatform(BasePlatform):
 
                 path = download_pdf(pdf_url, filename, "sci-hub")
                 if path:
-                    content = open(path, 'rb').read(1024)
+                    with open(path, 'rb') as f:
+                        content = f.read(1024)
                     if content.startswith(b'%PDF'):
                         return str(path)
-                    path.unlink()
+                    path.unlink(missing_ok=True)
 
         return None

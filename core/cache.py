@@ -197,15 +197,7 @@ class Cache:
     # ------------------------------------------------------------------
 
     def get_stats(self) -> dict:
-        """Return cache statistics.
-
-        Returns:
-            dict with keys:
-                - total_papers (int)
-                - cached_searches (int)
-                - oldest_entry (str | None) — ISO datetime of the oldest
-                  cached search, or None if empty
-        """
+        """Return cache statistics."""
         with self._lock:
             total_papers = self.conn.execute(
                 "SELECT COUNT(*) FROM papers"
@@ -224,6 +216,20 @@ class Cache:
             "cached_searches": cached_searches,
             "oldest_entry": oldest,
         }
+
+    def purge_expired(self, max_age_hours: int = 168) -> int:
+        """Delete cache entries older than max_age_hours (default 7 days).
+        Returns the number of rows deleted.
+        """
+        with self._lock:
+            cur = self.conn.execute(
+                """DELETE FROM searches
+                   WHERE created_at < datetime('now', ?)""",
+                (f"-{max_age_hours} hours",),
+            )
+            deleted = cur.rowcount
+            self.conn.commit()
+        return deleted
 
 
 # ======================================================================

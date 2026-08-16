@@ -50,9 +50,7 @@ def api_search():
 
     # 尝试从缓存读取
     if cache and not transport:
-        cached = []
-        for pname in platform_names or list(discover_platforms().keys()):
-            cached.extend(cache.get_search(query, pname, max_age_hours=24))
+        cached = cache.get_search(query, "__all__", max_age_hours=24)
         if cached:
             return jsonify({"results": [r.to_dict() for r in cached], "cached": True})
 
@@ -80,35 +78,39 @@ def api_search():
                     url=r.get("url", ""),
                     platform=r.get("platform", "crossref"),
                 ))
+            paper_results = dedup_results(paper_results)
+            paper_results = sort_results(paper_results, by="relevance")
             return jsonify({"results": [r.to_dict() for r in paper_results]})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
     all_results = []
+    errors = []
     for name, platform in platforms.items():
         try:
             results = platform.search(query, limit=limit)
             if results:
                 all_results.extend(results)
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"[{name}]: {e}")
 
     all_results = dedup_results(all_results)
+    all_results = sort_results(all_results, by="relevance")
     year_from = data.get("year_from")
     year_to = data.get("year_to")
     author = data.get("author")
     if year_from or year_to or author:
         all_results = filter_results(all_results, year_from, year_to, author)
 
-    # 写入缓存
+    # 写入缓存（整体结果存到一个 key 下，避免单平台搜索返回全平台结果）
     if cache:
-        for name in platform_names or list(platforms.keys()):
-            cache.save_search(query, name, all_results)
+        cache.save_search(query, "__all__", all_results)
 
     return jsonify({
         "results": [r.to_dict() for r in all_results],
         "total": len(all_results),
         "cached": False,
+        "errors": errors if errors else None,
     })
 
 
@@ -135,7 +137,8 @@ def api_download():
 
     path = try_download_parallel(platforms, paper)
     if path:
-        return jsonify({"success": True, "path": path, "title": paper.title})
+        filename = os.path.basename(path)
+        return jsonify({"success": True, "filename": filename, "title": paper.title})
     return jsonify({"success": False, "error": "所有平台无法下载"}), 404
 
 
@@ -196,4 +199,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print(f"🌐 PaperHub Web 界面: http://0.0.0.0:{port}")
     print(f"   搜索: curl -X POST http://localhost:{port}/api/search -H 'Content-Type: application/json' -d '{{\"query\":\"attention\"}}'")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=os.environ.get("FLASK_DEBUG", "0") == "1")

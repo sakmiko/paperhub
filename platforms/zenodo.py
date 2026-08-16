@@ -16,9 +16,12 @@ class ZenodoPlatform(BasePlatform):
         if kwargs.get("type"):
             params["type"] = kwargs["type"]
         resp = fetch(url, params=params)
-        if not resp:
+        if not resp or resp.status_code != 200:
             return []
-        data = resp.json()
+        try:
+            data = resp.json()
+        except Exception:
+            return []
         hits = data.get("hits", {}).get("hits", [])
         return [self._parse_item(item) for item in hits if item]
 

@@ -47,7 +47,7 @@ from platforms import BasePlatform
 DOWNLOAD_PRIORITY = [
     "arxiv", "pubmed", "openalex", "semantic-scholar", "core",
     "doaj", "zenodo", "biorxiv", "bohrium",
-    "crossref", "sci-hub", "cnki",
+    "crossref", "sci-hub", "cnki", "google-scholar", "ssrn",
 ]
 
 
@@ -213,7 +213,7 @@ def cmd_search(args):
         except Exception as e:
             if not args.json:
                 print(f"  ⚠️ [{name}] 失败: {e}")
-        time.sleep(0.5)
+        time.sleep(0.2)
 
     # 去重排序过滤
     all_results = dedup_results(all_results)

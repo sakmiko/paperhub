@@ -26,7 +26,7 @@ class BiorxivPlatform(BasePlatform):
                 "rows": limit // 2 + 1,
             }
             resp = fetch(url, params=params, timeout=15)
-            if not resp:
+            if not resp or resp.status_code != 200:
                 continue
             try:
                 items = resp.json().get("message", {}).get("items", [])

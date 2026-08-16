@@ -12,7 +12,13 @@ services:
     environment:
       - CORE_API_KEY=${CORE_API_KEY:-}
       - BOHRIUM_API_KEY=${BOHRIUM_API_KEY:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
     restart: "no"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
 
   paperhub-web:
     build: .
@@ -27,7 +33,13 @@ services:
     environment:
       - CORE_API_KEY=${CORE_API_KEY:-}
       - BOHRIUM_API_KEY=${BOHRIUM_API_KEY:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
 
 volumes:
   paperhub_downloads:

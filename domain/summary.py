@@ -60,6 +60,18 @@ def get_provider_name() -> str:
     return "Custom LLM"
 
 
+def _sanitize_for_prompt(text: str, max_len: int = 2000) -> str:
+    """清理用户输入，降低 prompt 注入风险"""
+    if not text:
+        return ""
+    # 截断
+    text = str(text)[:max_len]
+    # 移除可能的 prompt 注入标记
+    text = text.replace("```", "")
+    text = re.sub(r'(?i)\b(system|assistant|user)\s*:', '', text)
+    return text
+
+
 def _call_llm(prompt: str, system: str = "你是一个科研助手。") -> Optional[str]:
     """调用 LLM API（OpenAI 兼容格式）"""
     if not LLM_API_KEY:
@@ -103,8 +115,8 @@ def summarize(paper: PaperResult, lang: str = "zh") -> Optional[str]:
     lang_name = "中文" if lang == "zh" else "English"
     prompt = f"""请用{lang_name}总结以下论文的核心内容，控制在200字以内：
 
-标题: {paper.title}
-摘要: {text[:2000]}
+标题: {_sanitize_for_prompt(paper.title, 500)}
+摘要: {_sanitize_for_prompt(text, 2000)}
 
 请用{lang_name}输出：1) 研究问题 2) 方法 3) 主要发现"""
     return _call_llm(prompt)
@@ -116,7 +128,7 @@ def translate(text: str, target: str = "zh") -> Optional[str]:
         return None
     lang_map = {"zh": "中文", "en": "英文"}
     target_lang = lang_map.get(target, "中文")
-    prompt = f"请将以下内容翻译成{target_lang}，保持学术准确性：\n\n{text[:2000]}"
+    prompt = f"请将以下内容翻译成{target_lang}，保持学术准确性：\n\n{_sanitize_for_prompt(text, 2000)}"
     return _call_llm(prompt)
 
 
@@ -129,7 +141,7 @@ def extract_keywords(paper: PaperResult) -> Optional[List[str]]:
         return None
     prompt = f"""从以下论文信息中提取 3-5 个关键词，用逗号分隔：
 
-{text[:1500]}
+{_sanitize_for_prompt(text, 1500)}
 
 输出格式：关键词1, 关键词2, 关键词3"""
     result = _call_llm(prompt)
@@ -147,7 +159,7 @@ def suggest_research_questions(paper: PaperResult) -> Optional[List[str]]:
         return None
     prompt = f"""基于以下论文，提出 3 个值得进一步研究的开放性问题：
 
-{text[:1500]}
+{_sanitize_for_prompt(text, 1500)}
 
 每个问题一行，用数字编号。"""
     result = _call_llm(prompt)
@@ -163,8 +175,8 @@ def compare_papers(papers: List[PaperResult]) -> Optional[str]:
         return None
     text = ""
     for i, p in enumerate(papers[:3], 1):
-        text += f"\n论文{i}: {p.title}\n摘要: {(p.abstract or '')[:500]}\n"
-    prompt = f"""对比以下{papers[:3]}篇论文，分析它们的异同点：
+        text += f"\n论文{i}: {_sanitize_for_prompt(p.title, 500)}\n摘要: {_sanitize_for_prompt(p.abstract or '', 500)}\n"
+    prompt = f"""对比以下{min(len(papers), 3)}篇论文，分析它们的异同点：
 
 {text}
 

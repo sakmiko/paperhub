@@ -18,9 +18,37 @@ def safe_filename(text: str, max_len: int = 80) -> str:
     return name[:max_len]
 
 
+def _is_safe_url(url: str) -> bool:
+    """检查 URL 是否安全（阻止 SSRF：禁止内网 IP）"""
+    import ipaddress
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = parsed.hostname or ""
+        if not hostname:
+            return False
+        # 阻止内网 IP
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+        except ValueError:
+            pass  # 不是 IP 地址（是域名），允许
+        # 阻止常见的元数据端点
+        if hostname in ("169.254.169.254", "metadata.google.internal"):
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def fetch(url: str, headers: Optional[dict] = None, params: Optional[dict] = None,
            timeout: int = TIMEOUT, retries: int = 3) -> Optional[requests.Response]:
-    """带重试的 HTTP GET 请求"""
+    """带重试的 HTTP GET 请求（含 SSRF 防护）"""
+    if not _is_safe_url(url):
+        return None
     h = {"User-Agent": USER_AGENT}
     if headers:
         h.update(headers)
@@ -39,15 +67,25 @@ def fetch(url: str, headers: Optional[dict] = None, params: Optional[dict] = Non
 
 
 def post(url: str, json_data: dict, headers: Optional[dict] = None,
-         timeout: int = TIMEOUT) -> Optional[requests.Response]:
-    """带重试的 HTTP POST 请求"""
+         timeout: int = TIMEOUT, retries: int = 3) -> Optional[requests.Response]:
+    """带重试的 HTTP POST 请求（含 SSRF 防护）"""
+    if not _is_safe_url(url):
+        return None
     h = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
     if headers:
         h.update(headers)
-    try:
-        return requests.post(url, json=json_data, headers=h, timeout=timeout)
-    except requests.RequestException:
-        return None
+    for i in range(retries):
+        try:
+            resp = requests.post(url, json=json_data, headers=h, timeout=timeout)
+            if resp.status_code == 429:
+                time.sleep(5)
+                continue
+            return resp
+        except requests.RequestException:
+            if i == retries - 1:
+                return None
+            time.sleep(2)
+    return None
 
 
 def download_pdf(url: str, filename: str, subdir: str = "") -> Optional[Path]:
@@ -82,8 +120,8 @@ def download_pdf(url: str, filename: str, subdir: str = "") -> Optional[Path]:
     if content[:100].strip().startswith(b'%PDF'):
         save_path.write_bytes(content)
         return save_path
-    save_path.write_bytes(content)
-    return save_path
+    # 非 PDF 内容不保存
+    return None
 
 
 def extract_doi(text: str) -> Optional[str]:
@@ -110,6 +148,7 @@ def _title_similarity(t1: str, t2: str) -> float:
 def dedup_results(results: List['PaperResult']) -> List['PaperResult']:
     """去重：DOI 优先，其次标题相似度"""
     by_doi = {}
+    no_doi = []
     for r in results:
         if r.doi:
             doi = r.doi.lower().strip()
@@ -122,11 +161,13 @@ def dedup_results(results: List['PaperResult']) -> List['PaperResult']:
                     by_doi[doi] = r
             else:
                 by_doi[doi] = r
+        else:
+            no_doi.append(r)
 
     doi_deduped = list(by_doi.values())
-    # 按标题相似度二次去重
+    # 按标题相似度二次去重（包括无DOI的论文）
     final = []
-    for r in doi_deduped:
+    for r in doi_deduped + no_doi:
         is_dup = False
         for existing in final:
             if _title_similarity(r.title, existing.title) > 0.8:

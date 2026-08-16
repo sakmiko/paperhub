@@ -15,10 +15,13 @@ class CrossrefPlatform(BasePlatform):
         url = "https://api.crossref.org/works"
         params = {"query": query, "rows": min(limit, 100)}
         resp = fetch(url, params=params)
-        if not resp:
+        if not resp or resp.status_code != 200:
             return []
 
-        data = resp.json()
+        try:
+            data = resp.json()
+        except Exception:
+            return []
         items = data.get("message", {}).get("items", [])
         return [self._parse_item(item) for item in items if item]
 

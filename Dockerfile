@@ -7,7 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p ~/paper-downloads
+RUN mkdir -p /root/paper-downloads
+
+USER nobody
 
 ENTRYPOINT ["python", "main.py"]
 CMD ["--help"]

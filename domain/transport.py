@@ -32,7 +32,7 @@ TRANSPORT_JOURNALS = [
     ("Journal of Air Transport Management", "Journal of Air Transport Management", "J. Air Transp. Manag.", "0969-6997", ["J. Air Transp. Manag.", "Air Transport Management", "JATM"]),
     ("Research in Transportation Economics", "Research in Transportation Economics", "RTE", "0739-8859", ["RTE", "Research Transportation Economics"]),
     ("Research in Transportation Business & Management", "Research in Transportation Business & Management", "RTBM", "2210-5395", ["RTBM", "Research Transportation Business"]),
-    ("Transportation Research Part A: Policy and Practice", "Transportation Research Part A: Policy and Practice", "TR-A", "0965-8564", ["TR-A", "TR-A: Policy", "Transportation Research A"]),
+
 
     # === Taylor & Francis 交通期刊 ===
     ("Transportmetrica A", "Transportmetrica A: Transport Science", "Transportmetrica A", "2324-9935", ["Transportmetrica A", "Transportmetrica"]),
@@ -67,7 +67,6 @@ TRANSPORT_JOURNALS = [
     # === 公共交通/共享出行 ===
     ("Public Transport", "Public Transport", "Public Transp.", "1866-749X", ["Public Transp.", "Public Transport"]),
     ("Journal of Public Transportation", "Journal of Public Transportation", "J. Public Transp.", "1077-291X", ["J. Public Transp.", "Public Transportation"]),
-    ("Transportation Research Part C: Emerging Technologies", "Transportation Research Part C: Emerging Technologies", "TR-C", "0968-090X", ["TR-C", "TR-C: Emerging", "Transportation Research C"]),
 
     # === 新兴/跨学科 ===
     ("eTransportation", "eTransportation", "eTransportation", "2590-1168", ["eTransportation", "eTransport"]),
@@ -83,7 +82,6 @@ TRANSPORT_JOURNALS = [
     ("International Journal of Transportation Science and Technology", "International Journal of Transportation Science and Technology", "IJTST", "2046-0430", ["IJTST", "Int J Transp Sci Tech"]),
     ("Journal of Rail Transport Planning & Management", "Journal of Rail Transport Planning & Management", "JRTPM", "2210-9706", ["JRTPM", "Rail Transport Planning", "RTPM"]),
     ("Asian Transport Studies", "Asian Transport Studies", "ATS", "2185-5560", ["ATS", "Asian Transport"]),
-    ("Transportation Research Part C: Emerging Technologies", "Transportation Research Part C: Emerging Technologies", "TR-C", "0968-090X", ["TR-C", "TR-C: Emerging", "Transportation Research C"]),
 
     # === 中文交通期刊 ===
     ("中国公路学报", "中国公路学报", "China J. Highway Transp.", "1001-7372", ["中国公路学报", "中国公路", "Highway Journal"]),
@@ -119,10 +117,13 @@ def fuzzy_match_journal(query: str, threshold: float = 0.4) -> List[str]:
         if query in name.lower() or query in full.lower() or query.lower() == abbr.lower():
             matches.append((name, 1.0))
             continue
-        # 别名匹配
+        # 别名匹配（精确匹配优先）
         for alias in aliases:
-            if query.lower() == alias.lower() or query in alias.lower() or alias.lower() in query.lower():
-                matches.append((name, 0.9))
+            if query.lower() == alias.lower():
+                matches.append((name, 0.95))
+                break
+            elif query in alias.lower():
+                matches.append((name, 0.85))
                 break
         # 词组匹配
         query_words = set(re.findall(r'\w+', query))

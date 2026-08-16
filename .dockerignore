@@ -1,0 +1,10 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+paper_cache.db
+*.egg-info
+dist
+build
+.env
+config.yaml

@@ -15,4 +15,4 @@ downloads/
 
 # Build artifacts
 dist/
-*.egg-info/
+*.egg-info/paper_cache.db

@@ -20,4 +20,4 @@ dependencies = [
 paperhub = "main:main"
 
 [tool.setuptools.packages.find]
-include = ["paperhub*"]
+include = ["core*", "platforms*", "domain*", "web*"]
