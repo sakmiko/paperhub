@@ -159,16 +159,17 @@ def api_citation(doi):
 def api_summary():
     data = request.json or {}
     try:
-        from domain.summary import summarize, is_available
+        from domain.summary import summarize, is_available, get_provider_name
         if not is_available():
-            return jsonify({"error": "GLM API 未配置 (设置 GLM_API_KEY)"}), 501
+            return jsonify({"error": "LLM 未配置。设置环境变量: LLM_API_KEY (支持任意 OpenAI 兼容 API)"}), 501
         paper = PaperResult(
             title=data.get("title", ""),
             abstract=data.get("abstract", ""),
             doi=data.get("doi", ""),
         )
         summary = summarize(paper)
-        return jsonify({"summary": summary or ""})
+        provider = get_provider_name()
+        return jsonify({"summary": summary or "", "provider": provider})
     except ImportError:
         return jsonify({"error": "摘要模块未加载"}), 501
 

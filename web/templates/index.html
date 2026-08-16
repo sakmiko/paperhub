@@ -188,7 +188,7 @@
                     body: JSON.stringify({title: r.title, abstract: r.abstract, doi: r.doi}),
                 });
                 const data = await resp.json();
-                box.innerHTML = data.summary ? `🤖 ${data.summary}` : '❌ 摘要生成失败（需配置 GLM_API_KEY）';
+                box.innerHTML = data.summary ? `🤖 [${data.provider || 'LLM'}] ${data.summary}` : '❌ 摘要生成失败（需配置 LLM_API_KEY）';
             } catch(e) { box.innerHTML = '❌ 请求失败'; }
         }
 
