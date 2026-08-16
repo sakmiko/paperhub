@@ -16,3 +16,5 @@ downloads/
 # Build artifacts
 dist/
 *.egg-info/paper_cache.db
+paper_cache.db
+~/.paperhub/

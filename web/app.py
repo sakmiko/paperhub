@@ -17,10 +17,15 @@ except ImportError:
     sys.exit(1)
 
 from core.utils import PaperResult, dedup_results, sort_results, filter_results, format_results
-from main import discover_platforms, get_platforms, DOWNLOAD_PRIORITY, try_download_parallel
+from main import discover_platforms, get_platforms, do_search, DOWNLOAD_PRIORITY, try_download_parallel
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.urandom(24).hex()
+app.config["SECRET_KEY"] = os.urandom(24).hex
+
+# 初始化插件系统
+import plugins as plugin_sys
+plugin_sys.auto_discover()
+plugin_sys.init_all()
 
 # 尝试加载缓存
 try:
@@ -84,17 +89,7 @@ def api_search():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    all_results = []
-    errors = []
-    for name, platform in platforms.items():
-        try:
-            results = platform.search(query, limit=limit)
-            if results:
-                all_results.extend(results)
-        except Exception as e:
-            errors.append(f"[{name}]: {e}")
-
-    all_results = dedup_results(all_results)
+    all_results = do_search(query, platforms, limit=limit, silent=True)
     all_results = sort_results(all_results, by="relevance")
     year_from = data.get("year_from")
     year_to = data.get("year_to")
@@ -110,7 +105,6 @@ def api_search():
         "results": [r.to_dict() for r in all_results],
         "total": len(all_results),
         "cached": False,
-        "errors": errors if errors else None,
     })
 
 

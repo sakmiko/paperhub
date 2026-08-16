@@ -1,13 +1,47 @@
-# PaperHub 配置
-downloads:
-  directory: ~/paper-downloads
-  timeout: 30
-  retries: 3
+# PaperHub 配置文件
 
-keys:
-  core_api: ""       # CORE API Key (free: core.ac.uk/services/api)
-  bohrium_api: ""    # 玻尔 API Key
+# 下载目录
+download_dir: ~/paper-downloads
 
-search:
-  default_limit: 10
-  dedup: true
+# 超时（秒）
+timeout: 30
+
+# User-Agent
+user_agent: "PaperHub/1.0 (mailto:research@example.com)"
+
+# === 插件配置 ===
+plugins:
+  # 并发搜索
+  concurrent_search:
+    enabled: true
+    max_workers: 8
+    timeout: 30
+
+  # arXiv 优化
+  arxiv_optimizer:
+    enabled: true
+    timeout: 15
+    cache_ttl: 300
+
+  # PDF 元数据提取（需 PyMuPDF: pip install PyMuPDF）
+  pdf_metadata:
+    enabled: true
+    rename_files: true
+
+  # Zotero 集成（需 Zotero 本地运行 + Better BibTeX）
+  zotero:
+    enabled: false
+    api_url: http://localhost:23119
+    library: "1"
+    collection: ""
+
+  # 代理支持
+  proxy:
+    enabled: false
+    url: http://127.0.0.1:7890
+    no_proxy: localhost,127.0.0.1
+
+  # 搜索历史 + 收藏夹
+  history:
+    enabled: true
+    db_path: ~/.paperhub/history.db
