@@ -11,7 +11,7 @@ ATOM_NS = "http://www.w3.org/2005/Atom"
 ARXIV_NS = "http://arxiv.org/schemas/atom"
 OPENSEARCH_NS = "http://a9.com/-/spec/opensearch/1.1/"
 
-API_BASE = "http://export.arxiv.org/api/query"
+API_BASE = "https://export.arxiv.org/api/query"
 
 
 def _parse_arxiv_id(entry_id: str) -> str:
