@@ -15,6 +15,7 @@ from .railway import (
     collect_papers,
     collect_latest_railway_papers,
     search_wechat_articles,
+    collect_industry_news,
     get_report_summary,
 )
 from .citation import get_citations, get_references, get_citation_network, get_citation_count
@@ -25,7 +26,7 @@ __all__ = [
     "get_filter_params", "get_all_journals", "search_transport",
     "RAILWAY_JOURNALS_EN", "RAILWAY_JOURNALS_CN", "WECHAT_ACCOUNTS",
     "INDUSTRY_SITES", "collect_papers", "collect_latest_railway_papers",
-    "collect_industry_news", "get_report_summary",
+    "search_wechat_articles", "collect_industry_news", "get_report_summary",
     "get_citations", "get_references", "get_citation_network", "get_citation_count",
     "summarize", "translate", "extract_keywords", "suggest_research_questions",
     "compare_papers", "is_available", "get_provider_name",
