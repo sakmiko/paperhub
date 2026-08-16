@@ -99,9 +99,11 @@ def _title_similarity(t1: str, t2: str) -> float:
     s1, s2 = t1.lower().strip(), t2.lower().strip()
     if s1 == s2:
         return 1.0
-    # 计算公共字符比例
-    common = len(set(s1) & set(s2))
-    total = max(len(set(s1)), len(set(s2)))
+    # 去空格后计算字符级相似度
+    chars1 = set(s1.replace(' ', ''))
+    chars2 = set(s2.replace(' ', ''))
+    common = len(chars1 & chars2)
+    total = max(len(chars1), len(chars2))
     return common / total if total > 0 else 0.0
 
 
@@ -114,8 +116,8 @@ def dedup_results(results: List['PaperResult']) -> List['PaperResult']:
             if doi in by_doi:
                 old = by_doi[doi]
                 # 保留字段更丰富的
-                old_score = len([v for v in [old.title, old.doi, old.abstract, old.pdf_url] if v])
-                new_score = len([v for v in [r.title, r.doi, r.abstract, r.pdf_url] if v])
+                old_score = len([v for v in [old.title, old.doi, old.abstract, old.pdf_url] if v]) + len(old.authors)
+                new_score = len([v for v in [r.title, r.doi, r.abstract, r.pdf_url] if v]) + len(r.authors)
                 if new_score > old_score:
                     by_doi[doi] = r
             else:

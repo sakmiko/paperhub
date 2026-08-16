@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaperHub - 学术论文搜索</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 40px 0 20px; }
+        header h1 { font-size: 2.5em; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        header p { color: #94a3b8; margin-top: 8px; }
+        .search-box { max-width: 800px; margin: 20px auto; }
+        .search-row { display: flex; gap: 10px; }
+        .search-row input { flex: 1; padding: 14px 20px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #e2e8f0; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        .search-row input:focus { border-color: #60a5fa; }
+        .search-row button { padding: 14px 28px; border: none; border-radius: 12px; background: linear-gradient(135deg, #60a5fa, #a78bfa); color: #fff; font-size: 16px; cursor: pointer; transition: opacity 0.2s; }
+        .search-row button:hover { opacity: 0.9; }
+        .filters { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+        .filters select, .filters input { padding: 8px 12px; border: 1px solid #334155; border-radius: 8px; background: #1e293b; color: #e2e8f0; font-size: 14px; }
+        .filters label { color: #94a3b8; font-size: 14px; }
+        .filters .transport-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .filters .transport-toggle input { width: 16px; height: 16px; }
+        .results { margin-top: 20px; }
+        .result-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 12px; transition: border-color 0.2s; }
+        .result-card:hover { border-color: #60a5fa; }
+        .result-card h3 { font-size: 16px; margin-bottom: 8px; color: #60a5fa; }
+        .result-card .meta { font-size: 13px; color: #94a3b8; display: flex; gap: 16px; flex-wrap: wrap; }
+        .result-card .meta span { display: flex; align-items: center; gap: 4px; }
+        .result-card .actions { margin-top: 10px; display: flex; gap: 8px; }
+        .result-card .actions button { padding: 6px 14px; border: 1px solid #334155; border-radius: 6px; background: transparent; color: #94a3b8; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .result-card .actions button:hover { background: #334155; color: #e2e8f0; }
+        .result-card .actions .download-btn { border-color: #22c55e; color: #22c55e; }
+        .result-card .actions .download-btn:hover { background: #22c55e; color: #0f172a; }
+        .stats { text-align: center; color: #94a3b8; margin: 20px 0; font-size: 14px; }
+        .loading { text-align: center; padding: 40px; }
+        .loading .spinner { display: inline-block; width: 40px; height: 40px; border: 3px solid #334155; border-top-color: #60a5fa; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { background: #451a1a; border: 1px solid #dc2626; color: #fca5a5; padding: 12px 20px; border-radius: 8px; margin: 10px 0; }
+        .platform-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #334155; color: #94a3b8; margin-right: 4px; }
+        .summary-box { background: #1a2332; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 13px; color: #cbd5e1; display: none; }
+        @media (max-width: 600px) {
+            .search-row { flex-direction: column; }
+            .filters { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 PaperHub</h1>
+            <p>一站式学术论文搜索 — 12 平台 · 73 交通期刊 · 引用网络 · AI 摘要</p>
+        </header>
+
+        <div class="search-box">
+            <div class="search-row">
+                <input type="text" id="query" placeholder="输入搜索关键词，如 attention is all you need" onkeydown="if(event.key==='Enter') search()">
+                <button onclick="search()">🔍 搜索</button>
+            </div>
+            <div class="filters">
+                <select id="platform">
+                    <option value="">全部平台</option>
+                </select>
+                <input type="text" id="journal" placeholder="期刊过滤 (如 trr, 交通运输)" style="width:180px">
+                <input type="number" id="year_from" placeholder="起始年" style="width:90px" min="1900" max="2026">
+                <input type="number" id="year_to" placeholder="结束年" style="width:90px" min="1900" max="2026">
+                <input type="text" id="author" placeholder="作者" style="width:140px">
+                <select id="limit">
+                    <option value="5">5 条</option>
+                    <option value="10" selected>10 条</option>
+                    <option value="20">20 条</option>
+                </select>
+                <label class="transport-toggle">
+                    <input type="checkbox" id="transport"> 🚌 交通领域
+                </label>
+            </div>
+        </div>
+
+        <div id="stats" class="stats"></div>
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // 加载平台列表
+        fetch('/api/platforms').then(r=>r.json()).then(d=>{
+            const sel = document.getElementById('platform');
+            d.platforms.forEach(p => { sel.innerHTML += `<option value="${p}">${p}</option>`; });
+        });
+
+        let currentResults = [];
+
+        async function search() {
+            const query = document.getElementById('query').value.trim();
+            if (!query) return;
+
+            const resultsDiv = document.getElementById('results');
+            const statsDiv = document.getElementById('stats');
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;color:#94a3b8">搜索中...</p></div>';
+            statsDiv.innerHTML = '';
+
+            const payload = {
+                query,
+                platforms: document.getElementById('platform').value ? [document.getElementById('platform').value] : [],
+                limit: parseInt(document.getElementById('limit').value),
+                transport: document.getElementById('transport').checked,
+                journal: document.getElementById('journal').value.trim(),
+                year_from: document.getElementById('year_from').value || null,
+                year_to: document.getElementById('year_to').value || null,
+                author: document.getElementById('author').value || null,
+            };
+
+            try {
+                const resp = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+                if (data.error) { resultsDiv.innerHTML = `<div class="error">❌ ${data.error}</div>`; return; }
+                if (data.cached) statsDiv.innerHTML = `📦 缓存结果 · ${data.results.length} 篇`;
+                else statsDiv.innerHTML = `📚 ${data.results.length} 篇结果`;
+                currentResults = data.results;
+                renderResults(data.results);
+            } catch(e) {
+                resultsDiv.innerHTML = `<div class="error">❌ 请求失败: ${e.message}</div>`;
+            }
+        }
+
+        function renderResults(results) {
+            const div = document.getElementById('results');
+            if (!results.length) { div.innerHTML = '<div class="error" style="border-color:#60a5fa;color:#93c5fd;">❌ 未找到相关论文</div>'; return; }
+            div.innerHTML = results.map((r, i) => `
+                <div class="result-card">
+                    <h3>${escapeHtml(r.title || '无标题')}</h3>
+                    <div class="meta">
+                        ${r.authors ? `<span>👤 ${r.authors.slice(0,3).join(', ')}</span>` : ''}
+                        ${r.year ? `<span>📅 ${r.year}</span>` : ''}
+                        ${r.source ? `<span>📰 ${r.source}</span>` : ''}
+                        ${r.doi ? `<span>🔗 ${r.doi}</span>` : ''}
+                        <span class="platform-tag">${r.platform || '?'}</span>
+                    </div>
+                    <div class="actions">
+                        ${r.doi ? `<button class="download-btn" onclick="downloadPaper('${r.doi}')">📥 下载</button>` : ''}
+                        ${r.doi ? `<button onclick="showCitations('${r.doi}')">🔗 引用</button>` : ''}
+                        ${r.abstract ? `<button onclick="showSummary(${i})">🤖 摘要</button>` : ''}
+                        ${r.url ? `<button onclick="window.open('${r.url}','_blank')">🌐 打开</button>` : ''}
+                    </div>
+                    <div class="summary-box" id="summary-${i}"></div>
+                    <div class="summary-box" id="citations-${i}" style="margin-top:5px;"></div>
+                </div>
+            `).join('');
+        }
+
+        async function downloadPaper(doi) {
+            try {
+                const resp = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({doi}),
+                });
+                const data = await resp.json();
+                alert(data.success ? `✅ 下载成功: ${data.path}` : `❌ 下载失败: ${data.error}`);
+            } catch(e) { alert('❌ 下载请求失败'); }
+        }
+
+        async function showCitations(doi) {
+            try {
+                const resp = await fetch(`/api/citation/${encodeURIComponent(doi)}`);
+                const data = await resp.json();
+                if (data.error) { alert('❌ ' + data.error); return; }
+                const citations = data.citations || [];
+                const refs = data.references || [];
+                alert(`📊 引用统计\n\n被引: ${citations.length} 篇\n参考文献: ${refs.length} 篇\n\n(详情在终端查看)`);
+            } catch(e) { alert('❌ 请求失败'); }
+        }
+
+        async function showSummary(index) {
+            const r = currentResults[index];
+            const box = document.getElementById(`summary-${index}`);
+            if (box.style.display === 'block') { box.style.display = 'none'; return; }
+            box.style.display = 'block';
+            box.innerHTML = '<div class="loading" style="padding:10px"><div class="spinner" style="width:20px;height:20px"></div></div>';
+            try {
+                const resp = await fetch('/api/summary', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title: r.title, abstract: r.abstract, doi: r.doi}),
+                });
+                const data = await resp.json();
+                box.innerHTML = data.summary ? `🤖 ${data.summary}` : '❌ 摘要生成失败（需配置 GLM_API_KEY）';
+            } catch(e) { box.innerHTML = '❌ 请求失败'; }
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

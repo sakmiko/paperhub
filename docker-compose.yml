@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  paperhub:
+    build: .
+    image: paperhub:latest
+    container_name: paperhub
+    command: search "attention" --all --limit 5
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - paperhub_downloads:/root/paper-downloads
+    environment:
+      - CORE_API_KEY=${CORE_API_KEY:-}
+      - BOHRIUM_API_KEY=${BOHRIUM_API_KEY:-}
+    restart: "no"
+
+  paperhub-web:
+    build: .
+    image: paperhub:latest
+    container_name: paperhub-web
+    command: python -m web.app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - paperhub_downloads:/root/paper-downloads
+    environment:
+      - CORE_API_KEY=${CORE_API_KEY:-}
+      - BOHRIUM_API_KEY=${BOHRIUM_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  paperhub_downloads:
