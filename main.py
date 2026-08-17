@@ -147,6 +147,7 @@ def do_search(query: str, platforms: dict, limit: int = 10, silent: bool = False
     else:
         # 默认串行搜索
         all_results = []
+        errors = []
         for name, platform in platforms.items():
             try:
                 results = platform.search(query, limit=limit)
@@ -155,6 +156,7 @@ def do_search(query: str, platforms: dict, limit: int = 10, silent: bool = False
                     if not silent:
                         print(f"  ✅ [{name}] 找到 {len(results)} 篇")
             except Exception as e:
+                errors.append(f"[{name}]: {e}")
                 if not silent:
                     print(f"  ⚠️ [{name}] 失败: {e}")
             time.sleep(0.2)
@@ -165,7 +167,7 @@ def do_search(query: str, platforms: dict, limit: int = 10, silent: bool = False
     # 触发 on_search hook（历史记录等）
     all_results = plugin_sys.run_hook("on_search", query, all_results)
 
-    return all_results
+    return all_results, errors
 
 
 # ===== CLI 命令 =====
@@ -214,7 +216,7 @@ def cmd_search(args):
         print("❌ 没有可用的平台")
         sys.exit(1)
 
-    all_results = do_search(args.query, platforms, limit=args.limit, silent=args.json)
+    all_results, _ = do_search(args.query, platforms, limit=args.limit, silent=args.json)
 
     if args.sort:
         all_results = sort_results(all_results, by=args.sort)
@@ -245,7 +247,7 @@ def cmd_download(args):
 
     if args.search:
         print(f"🔍 搜索: {args.search}")
-        results = do_search(args.search, platforms, limit=args.limit or 5, silent=True)
+        results, _ = do_search(args.search, platforms, limit=args.limit or 5, silent=True)
         if not results:
             print("❌ 未搜索到相关论文")
             return

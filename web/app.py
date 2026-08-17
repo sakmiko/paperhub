@@ -89,7 +89,7 @@ def api_search():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    all_results = do_search(query, platforms, limit=limit, silent=True)
+    all_results, search_errors = do_search(query, platforms, limit=limit, silent=True)
     all_results = sort_results(all_results, by="relevance")
     year_from = data.get("year_from")
     year_to = data.get("year_to")
@@ -105,6 +105,7 @@ def api_search():
         "results": [r.to_dict() for r in all_results],
         "total": len(all_results),
         "cached": False,
+        "errors": search_errors if search_errors else None,
     })
 
 
