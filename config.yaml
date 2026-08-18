@@ -45,3 +45,8 @@ plugins:
   history:
     enabled: true
     db_path: ~/.paperhub/history.db
+
+  # Unpaywall OA检测（免费，只需email）
+  unpaywall:
+    enabled: true
+    email: paperhub@gmail.com

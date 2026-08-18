@@ -46,23 +46,31 @@ def _is_safe_url(url: str) -> bool:
 
 def fetch(url: str, headers: Optional[dict] = None, params: Optional[dict] = None,
            timeout: int = TIMEOUT, retries: int = 3) -> Optional[requests.Response]:
-    """带重试的 HTTP GET 请求（含 SSRF 防护）"""
+    """带指数退避重试的 HTTP GET 请求（含 SSRF 防护）"""
     if not _is_safe_url(url):
         return None
     h = {"User-Agent": USER_AGENT}
     if headers:
         h.update(headers)
+    # 代理环境检测时禁用SSL验证
+    import os as _os, urllib3
+    use_proxy = _os.environ.get("HTTP_PROXY") or _os.environ.get("HTTPS_PROXY")
+    verify = not bool(use_proxy)
+    if not verify:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     for i in range(retries):
         try:
-            resp = requests.get(url, headers=h, params=params, timeout=timeout)
-            if resp.status_code == 429:
-                time.sleep(5)
-                continue
+            resp = requests.get(url, headers=h, params=params, timeout=timeout, verify=verify)
+            if resp.status_code == 429 or resp.status_code >= 500:
+                if i < retries - 1:
+                    wait = 2.0 ** i  # 指数退避: 1s, 2s, 4s...
+                    time.sleep(wait)
+                    continue
             return resp
         except requests.RequestException:
             if i == retries - 1:
                 return None
-            time.sleep(2)
+            time.sleep(2.0 ** i)
     return None
 
 
@@ -88,8 +96,45 @@ def post(url: str, json_data: dict, headers: Optional[dict] = None,
     return None
 
 
+def is_plausible_pdf(body, *, min_bytes=5000) -> bool:
+    """严格验证字节是否为有效PDF"""
+    if not isinstance(body, (bytes, bytearray)):
+        return False
+    data = bytes(body)
+    if not data.startswith(b"%PDF-") or len(data) <= min_bytes:
+        return False
+    if b"\xef\xbf\xbd" in data[:64]:
+        return False
+    eof = data.rfind(b"%%EOF")
+    if eof == -1:
+        return True
+    return eof >= max(0, len(data) - 8192)
+
+
+def describe_non_pdf_bytes(body, *, min_bytes=5000) -> str:
+    """返回非PDF内容的拒绝原因"""
+    if not isinstance(body, (bytes, bytearray)):
+        return "not_bytes"
+    data = bytes(body)
+    if not data:
+        return "empty"
+    prefix = data[:512].lstrip().lower()
+    if prefix.startswith((b"<!doctype html", b"<html", b"<head", b"<body")):
+        return "html_response"
+    if len(data) <= min_bytes:
+        return "too_small"
+    if not data.startswith(b"%PDF-"):
+        return "missing_pdf_header"
+    if b"\xef\xbf\xbd" in data[:64]:
+        return "corrupt_pdf_header"
+    eof = data.rfind(b"%%EOF")
+    if eof != -1 and eof < max(0, len(data) - 8192):
+        return "early_eof_with_trailing_payload"
+    return "unknown_non_pdf"
+
+
 def download_pdf(url: str, filename: str, subdir: str = "") -> Optional[Path]:
-    """下载 PDF 文件，验证有效性"""
+    """下载 PDF 文件，严格验证有效性"""
     save_dir = DOWNLOAD_DIR / subdir
     save_dir.mkdir(exist_ok=True, parents=True)
     save_path = save_dir / f"{filename}.pdf"
@@ -112,12 +157,12 @@ def download_pdf(url: str, filename: str, subdir: str = "") -> Optional[Path]:
             resp2 = fetch(pdf_url, headers={"User-Agent": "Mozilla/5.0"})
             if resp2 and resp2.status_code == 200:
                 content = resp2.content
-                if content[:100].strip().startswith(b'%PDF'):
+                if is_plausible_pdf(content):
                     save_path.write_bytes(content)
                     return save_path
         return None
 
-    if content[:100].strip().startswith(b'%PDF'):
+    if is_plausible_pdf(content):
         save_path.write_bytes(content)
         return save_path
     # 非 PDF 内容不保存

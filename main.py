@@ -102,19 +102,82 @@ def try_download_single(platform, paper: PaperResult, filename: str) -> Optional
     return None
 
 
+def try_download_unpaywall(paper: PaperResult) -> Optional[str]:
+    """Step 0: 查Unpaywall OA，有免费PDF直接下"""
+    if not paper.doi:
+        return None
+    try:
+        import plugins as plugin_sys
+        uw = plugin_sys.get("unpaywall")
+        if not uw or not uw.enabled:
+            return None
+        oa = uw.check_oa(paper.doi)
+        if oa and oa.get("is_oa") and oa.get("pdf_url"):
+            from core.utils import download_pdf
+            filename = safe_filename(paper.title or paper.doi or "paper")
+            path = download_pdf(oa["pdf_url"], filename, "unpaywall")
+            if path:
+                return str(path)
+    except Exception:
+        pass
+    return None
+
+
+def try_download_publisher_adapter(paper: PaperResult) -> Optional[str]:
+    """Step 2b: 用出版商适配器从文章页面提取PDF链接"""
+    url = paper.url or ""
+    if not url:
+        return None
+    try:
+        from platforms.publisher_adapters import get_adapter
+        from core.utils import fetch, download_pdf
+        adapter = get_adapter(url)
+        if not adapter:
+            return None
+        resp = fetch(url, headers={"User-Agent": "Mozilla/5.0"})
+        if not resp or resp.status_code != 200:
+            return None
+        pdf_url = adapter.extract_pdf_url(resp.text, url)
+        if pdf_url:
+            filename = safe_filename(paper.title or paper.doi or "paper")
+            path = download_pdf(pdf_url, filename, "publisher")
+            if path:
+                return str(path)
+    except Exception:
+        pass
+    return None
+
+
 def try_download_parallel(platforms: dict, paper: PaperResult, priority: List[str] = None) -> Optional[str]:
     if priority is None:
         priority = DOWNLOAD_PRIORITY
     filename = safe_filename(paper.title or paper.doi or "paper")
+
+    # Step 0: Unpaywall OA (highest priority)
+    result = try_download_unpaywall(paper)
+    if result:
+        import plugins as plugin_sys
+        result = plugin_sys.run_hook("on_download", paper, result)
+        return result
+
+    # Step 1: arXiv direct
+    arxiv_result = None
     for name in priority:
         if name not in platforms:
             continue
         result = try_download_single(platforms[name], paper, filename)
         if result:
-            # 触发 on_download hook
             import plugins as plugin_sys
             result = plugin_sys.run_hook("on_download", paper, result)
             return result
+
+    # Step 2: Publisher adapters
+    result = try_download_publisher_adapter(paper)
+    if result:
+        import plugins as plugin_sys
+        result = plugin_sys.run_hook("on_download", paper, result)
+        return result
+
     return None
 
 
